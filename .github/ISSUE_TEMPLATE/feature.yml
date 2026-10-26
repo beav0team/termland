@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an idea for termland
+title: "[feature] "
+labels: ["feature"]
+body:
+  - type: textarea
+    attributes:
+      label: Problem
+      description: Is your feature request related to a problem? Please describe.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to happen.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+      description: Describe any alternative solutions or features you've considered.
+  - type: dropdown
+    attributes:
+      label: Milestone relevance
+      description: Which tier does this belong to?
+      options:
+        - "Milestone 1–2: login session under greetd"
+        - "Milestone 2: surface trait / GPU frontend"
+        - "Milestone 4: bundled font, config, logging"
+        - "Milestone 5: ISO that boots to termland"
+        - "Milestone 7: IME, clipboard, AT-SPI"
+        - "None / not yet"

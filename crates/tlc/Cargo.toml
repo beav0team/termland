@@ -1,0 +1,13 @@
+[package]
+name = "tlc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Control a running termland from any shell"
+
+[[bin]]
+name = "tlc"
+path = "src/main.rs"
+
+[dependencies]

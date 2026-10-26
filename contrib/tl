@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# tl — launch termland inside kitty: one full-screen terminal, nothing else.
+#
+#   tl                 normal session
+#   tl --demo          three-pane demo (monitor · editor · image)
+#   tl -- hx README.md
+#
+# Everything is overridable:
+#   TERMLAND_BIN=/path/to/termland   which binary to run
+#   TERMLAND_KITTY_CONF=/path/conf   which kitty config to use
+set -euo pipefail
+
+CONF="${TERMLAND_KITTY_CONF:-$HOME/.config/termland/kitty.conf}"
+BIN="${TERMLAND_BIN:-$HOME/.local/bin/termland}"
+
+# Fall back to a sibling/built binary so `./cargo run`-style devs work too.
+if [ ! -x "$BIN" ]; then
+    self_dir="$(cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)"
+    for candidate in \
+        "$self_dir/termland" \
+        "$HOME/Documents/termland/target/release/termland" \
+        "$HOME/Documents/termland/target/debug/termland"
+    do
+        if [ -x "$candidate" ]; then BIN="$candidate"; break; fi
+    done
+fi
+
+if ! command -v kitty >/dev/null 2>&1; then
+    echo "tl: kitty is not installed (apt install kitty)" >&2
+    exit 1
+fi
+
+conf_args=()
+[ -f "$CONF" ] && conf_args=(--config "$CONF")
+
+# --class gives the window a stable app_id, so a window manager can match it:
+#   Hyprland:  windowrule = class:termland, ...
+exec kitty \
+    --class termland \
+    --title termland \
+    "${conf_args[@]}" \
+    "$BIN" "$@"

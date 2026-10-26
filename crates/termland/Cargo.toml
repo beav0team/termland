@@ -1,0 +1,48 @@
+[package]
+name = "termland"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "A tiling window manager that lives inside one terminal tab"
+
+[lib]
+name = "termland"
+path = "src/lib.rs"
+
+[[bin]]
+name = "termland"
+path = "src/main.rs"
+
+[features]
+default = []
+# sixel + iTerm2 encoding, for hosts that are neither kitty nor ghostty nor
+# WezTerm. Pulls in libchafa, which pulls in glib — deliberately *off* by
+# default so a bare `cargo build` needs no C libraries beyond libc. A distro
+# image must not depend on a graphics encoder it will never call: the tier-2
+# frontend owns its own textures.
+chafa = ["ratatui-image/chafa-dyn"]
+
+[dependencies]
+anyhow = "1"
+# Only the formats a screenshot or a photo would actually be, not the whole
+# `image` matrix: dropping exr/tiff/avif here saves minutes of build time.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+# crossterm comes through ratatui so the event types can never drift apart.
+ratatui = "0.30"
+# base64 for the kitty graphics protocol payload; the crate is already in the
+# tree under ratatui-image, this only makes the dependency ours.
+base64 = "0.22"
+ratatui-image = { version = "11", default-features = false, features = ["crossterm"] }
+portable-pty = "0.9"
+unicode-width = "0.2"
+vt100 = "0.18"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+dirs = "5"
+shellexpand = "3"
+# `localtime_r` for the panel clock. Already in the tree via portable-pty; the
+# dependency is direct because we call it ourselves.
+libc = "0.2"
+sysinfo = { version = "0.36.1", default-features = false, features = ["system"] }
+tui-chart = { version = "0.6.0", default-features = false }

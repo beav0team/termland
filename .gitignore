@@ -1,0 +1,14 @@
+# Rust build output — this directory is over 1 GB.
+/target
+**/target
+
+# Editor / OS noise
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Local overrides
+*.local.toml
+.env

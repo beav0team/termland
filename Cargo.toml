@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = ["crates/termland", "crates/tlc"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[profile.release]
+opt-level = 2      # this machine is a 4C/8T ultrabook with no GPU
+lto = "thin"
+codegen-units = 4  # small binary, faster builds than fat LTO
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 1
