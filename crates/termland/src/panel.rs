@@ -145,13 +145,13 @@ impl Panel {
 
         // Helper to draw a segment and register a button.
         let draw_segment = |cx: &mut u16,
-                                text: &str,
-                                style: Style,
-                                action: Option<PanelAction>,
-                                buf: &mut Buffer,
-                                buttons: &mut Vec<PanelButton>,
-                                area: Rect,
-                                limit: u16| {
+                            text: &str,
+                            style: Style,
+                            action: Option<PanelAction>,
+                            buf: &mut Buffer,
+                            buttons: &mut Vec<PanelButton>,
+                            area: Rect,
+                            limit: u16| {
             let tw = text.width() as u16;
             if *cx + tw > limit {
                 return;
@@ -203,7 +203,7 @@ impl Panel {
         );
 
         // --- Workspaces ---
-        let ws_count = app.ws.len().max(3).min(9);
+        let ws_count = app.ws.len().clamp(3, 9);
         for i in 0..ws_count {
             let active = i == app.cur;
             let used = app.ws.get(i).map(|w| w.layout.is_some()).unwrap_or(false);
@@ -214,13 +214,9 @@ impl Panel {
                     .bg(theme::ACCENT)
                     .add_modifier(Modifier::BOLD)
             } else if used {
-                Style::default()
-                    .fg(theme::FG)
-                    .bg(theme::BG_ALT)
+                Style::default().fg(theme::FG).bg(theme::BG_ALT)
             } else {
-                Style::default()
-                    .fg(theme::FG_DIM)
-                    .bg(theme::BG_ALT)
+                Style::default().fg(theme::FG_DIM).bg(theme::BG_ALT)
             };
             draw_segment(
                 &mut cx,
@@ -282,9 +278,7 @@ impl Panel {
                         .bg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default()
-                        .fg(theme::FG_DIM)
-                        .bg(theme::BG_ALT)
+                    Style::default().fg(theme::FG_DIM).bg(theme::BG_ALT)
                 };
                 draw_segment(
                     &mut cx,

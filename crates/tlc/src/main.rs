@@ -104,10 +104,7 @@ mod tests {
         // path logic must agree.
         let prior = std::env::var_os("XDG_RUNTIME_DIR");
         std::env::set_var("XDG_RUNTIME_DIR", "/run/user/1000");
-        assert_eq!(
-            socket_path(),
-            PathBuf::from("/run/user/1000/termland.sock")
-        );
+        assert_eq!(socket_path(), PathBuf::from("/run/user/1000/termland.sock"));
         std::env::remove_var("XDG_RUNTIME_DIR");
         assert!(!socket_path().starts_with("/tmp"));
         match prior {

@@ -82,9 +82,7 @@ impl Config {
         let path = default_path();
         let text = match fs::read_to_string(&path) {
             Ok(t) => t,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return (Self::default(), None)
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (Self::default(), None),
             Err(e) => {
                 let msg = format!("cannot read {}: {e}; using defaults", path.display());
                 crate::log::write(&msg);
@@ -102,7 +100,12 @@ impl Config {
     }
 
     /// Resolve the leader key string into crossterm modifiers + code.
-    pub fn leader_key(&self) -> (ratatui::crossterm::event::KeyModifiers, ratatui::crossterm::event::KeyCode) {
+    pub fn leader_key(
+        &self,
+    ) -> (
+        ratatui::crossterm::event::KeyModifiers,
+        ratatui::crossterm::event::KeyCode,
+    ) {
         match self.leader.as_deref() {
             Some("ctrl-space") | Some("ctrl+space") => (
                 ratatui::crossterm::event::KeyModifiers::CONTROL,

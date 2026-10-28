@@ -50,8 +50,7 @@ fn prepare_dir(dir: &Path) -> Result<()> {
             }
         }
     } else {
-        std::fs::create_dir_all(dir)
-            .with_context(|| format!("create {}", dir.display()))?;
+        std::fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -124,8 +123,7 @@ pub fn spawn_server(tx: Sender<Msg>) -> Result<PathBuf> {
     };
     prepare_dir(dir)?;
     clear_stale(&path)?;
-    let listener = UnixListener::bind(&path)
-        .with_context(|| format!("bind {}", path.display()))?;
+    let listener = UnixListener::bind(&path).with_context(|| format!("bind {}", path.display()))?;
 
     // The default umask leaves the socket 0775, which lets every local user
     // drive this terminal through `tlc`. Bind creates it before we can say
@@ -243,7 +241,10 @@ mod tests {
 
         assert!(clear_stale(&link).is_err());
         assert!(target.exists(), "the symlink target must survive");
-        assert!(link.symlink_metadata().is_ok(), "the link itself must survive");
+        assert!(
+            link.symlink_metadata().is_ok(),
+            "the link itself must survive"
+        );
         let _ = std::fs::remove_dir_all(&base);
     }
 

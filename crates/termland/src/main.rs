@@ -5,11 +5,11 @@ use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::time::Duration;
 use termland::app::{build_demo, App};
+use termland::layout::Dir;
+use termland::msg::Msg;
 use termland::surface::KittySurface;
 use termland::system::SystemInfo;
 use termland::{ipc, log};
-use termland::layout::Dir;
-use termland::msg::Msg;
 
 /// How often the loop wakes up even with nothing to do: fast enough for a
 /// clock that lands on the minute and a half-second cursor blink, slow enough
@@ -117,14 +117,11 @@ fn main() -> Result<()> {
     let input_tx = tx.clone();
     std::thread::Builder::new()
         .name("input".into())
-        .spawn(move || loop {
-            match ratatui::crossterm::event::read() {
-                Ok(ev) => {
-                    if input_tx.send(Msg::Input(ev)).is_err() {
-                        break;
-                    }
+        .spawn(move || {
+            while let Ok(ev) = ratatui::crossterm::event::read() {
+                if input_tx.send(Msg::Input(ev)).is_err() {
+                    break;
                 }
-                Err(_) => break,
             }
         })
         .ok();
@@ -191,10 +188,7 @@ fn main() -> Result<()> {
     res
 }
 
-fn run(
-    app: &mut App,
-    rx: Receiver<Msg>,
-) -> Result<()> {
+fn run(app: &mut App, rx: Receiver<Msg>) -> Result<()> {
     app.draw();
     loop {
         // Sleep long when nothing moves and short when something does. An idle

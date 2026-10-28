@@ -9,23 +9,23 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
+use crate::anim::Clock;
 use crate::apps::AppRegistry;
 use crate::config::Config;
 use crate::desktop::{Desktop, DesktopAction};
 use crate::files::{FileAction, FilePane};
 use crate::image::ImagePane;
 use crate::keys;
-use crate::anim::Clock;
-use crate::widgets::{Id, Pointer, Ui};
 use crate::layout::{auto_dir, Dir, NavDir, Node, PaneId};
 use crate::monitor::MonitorPane;
 use crate::msg::{IpcRequest, Msg};
 use crate::panel::{Panel, PanelAction};
 use crate::pty::{shell_argv, TermPane};
 use crate::surface::{Frame, Surface};
-use crate::wallpaper::Wallpaper;
 use crate::system::SystemInfo;
 use crate::ui;
+use crate::wallpaper::Wallpaper;
+use crate::widgets::{Id, Pointer, Ui};
 
 pub enum Pane {
     Term(TermPane),
@@ -241,9 +241,7 @@ impl App {
     }
 
     fn layout_mut(&mut self) -> Option<&mut Node> {
-        self.ws
-            .get_mut(self.cur)
-            .and_then(|w| w.layout.as_mut())
+        self.ws.get_mut(self.cur).and_then(|w| w.layout.as_mut())
     }
 
     pub fn visible_rects(&self) -> Vec<(PaneId, Rect)> {
@@ -294,11 +292,9 @@ impl App {
             ws.layout = Some(Node::leaf(id));
             ws.focus = Some(id);
         } else {
-            let target = ws.focus.or_else(|| {
-                ws.layout
-                    .as_ref()
-                    .and_then(|n| n.leaves().first().copied())
-            });
+            let target = ws
+                .focus
+                .or_else(|| ws.layout.as_ref().and_then(|n| n.leaves().first().copied()));
             let split_ok = match target {
                 Some(t) => ws
                     .layout
@@ -425,7 +421,10 @@ impl App {
             ws.layout = None;
             true
         } else {
-            ws.layout.as_mut().map(|r| r.remove_leaf(id)).unwrap_or(false)
+            ws.layout
+                .as_mut()
+                .map(|r| r.remove_leaf(id))
+                .unwrap_or(false)
         };
         if !removed {
             return;
@@ -435,7 +434,8 @@ impl App {
             self.zoom = None;
         }
         if ws.focus == Some(id) {
-            ws.focus = next.or_else(|| ws.layout.as_ref().and_then(|n| n.leaves().first().copied()));
+            ws.focus =
+                next.or_else(|| ws.layout.as_ref().and_then(|n| n.leaves().first().copied()));
         }
         self.resize_all();
     }
@@ -671,7 +671,7 @@ impl App {
             }
             MouseEventKind::Down(_) => self.on_press(ev),
             MouseEventKind::Drag(MouseButton::Left) => {
-                if self.drag.map_or(false, |d| d.active) {
+                if self.drag.is_some_and(|d| d.active) {
                     let area = self.area;
                     if let Some(layout) = self.layout_mut() {
                         layout.resize_divider_at(area, ev.column, ev.row);
@@ -682,15 +682,13 @@ impl App {
                 }
             }
             MouseEventKind::Up(MouseButton::Left) => {
-                if self.drag.map_or(false, |d| d.active) {
+                if self.drag.is_some_and(|d| d.active) {
                     self.drag = None;
                 } else if let Some(id) = self.focus() {
                     self.forward_mouse(id, ev);
                 }
             }
-            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown
-                if self.desktop_visible() =>
-            {
+            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown if self.desktop_visible() => {
                 let area = self.area;
                 let action = self.desktop.on_mouse(ev, area);
                 self.apply_desktop_action(action);
@@ -883,7 +881,11 @@ impl App {
             // its own scrollback means better than termland does.
             self.forward_mouse(id, ev);
         } else if let Some(t) = self.panes.get_mut(&id).and_then(|p| p.term_mut()) {
-            t.scroll(if ev.kind == MouseEventKind::ScrollUp { -1 } else { 1 });
+            t.scroll(if ev.kind == MouseEventKind::ScrollUp {
+                -1
+            } else {
+                1
+            });
         }
     }
 
@@ -940,17 +942,15 @@ impl App {
         let key = match ev.code {
             KeyCode::Char(c) => c.to_ascii_lowercase(),
             KeyCode::Esc => return,
-            _ => {
-                match ev.code {
-                    KeyCode::Right => return self.focus_dir(NavDir::Right),
-                    KeyCode::Left => return self.focus_dir(NavDir::Left),
-                    KeyCode::Up => return self.focus_dir(NavDir::Up),
-                    KeyCode::Down => return self.focus_dir(NavDir::Down),
-                    KeyCode::Tab => return self.focus_cycle(1),
-                    KeyCode::BackTab => return self.focus_cycle(-1),
-                    _ => return,
-                }
-            }
+            _ => match ev.code {
+                KeyCode::Right => return self.focus_dir(NavDir::Right),
+                KeyCode::Left => return self.focus_dir(NavDir::Left),
+                KeyCode::Up => return self.focus_dir(NavDir::Up),
+                KeyCode::Down => return self.focus_dir(NavDir::Down),
+                KeyCode::Tab => return self.focus_cycle(1),
+                KeyCode::BackTab => return self.focus_cycle(-1),
+                _ => return,
+            },
         };
 
         if shift {
@@ -977,7 +977,10 @@ impl App {
             ']' => self.focus_cycle(1),
             '[' => self.focus_cycle(-1),
             'n' => {
-                self.spawn_term(shell_argv(), auto_dir(self.focus_rect().unwrap_or(self.area)));
+                self.spawn_term(
+                    shell_argv(),
+                    auto_dir(self.focus_rect().unwrap_or(self.area)),
+                );
             }
             'i' => {
                 self.spawn_image(None, Dir::Horizontal);
@@ -1002,7 +1005,6 @@ impl App {
 
     /// Open the built-in file manager, optionally at a directory.
     pub fn spawn_files(&mut self, path: Option<PathBuf>, dir: Dir) -> Option<PaneId> {
-        let dir = dir;
         let fp = FilePane::new(path);
         Some(self.insert_pane(Pane::Files(fp), dir))
     }
@@ -1199,14 +1201,17 @@ impl App {
                 ws.layout = None;
                 true
             } else {
-                ws.layout.as_mut().map(|r| r.remove_leaf(id)).unwrap_or(false)
+                ws.layout
+                    .as_mut()
+                    .map(|r| r.remove_leaf(id))
+                    .unwrap_or(false)
             };
             if !removed {
                 return;
             }
             if ws.focus == Some(id) {
-                ws.focus = next
-                    .or_else(|| ws.layout.as_ref().and_then(|n| n.leaves().first().copied()));
+                ws.focus =
+                    next.or_else(|| ws.layout.as_ref().and_then(|n| n.leaves().first().copied()));
             }
         }
 
@@ -1356,7 +1361,14 @@ impl App {
             }
             None => 0.0,
         };
-        ui::draw_desktop(frame, body, &self.desktop, hovered, hover, &mut self.wallpaper);
+        ui::draw_desktop(
+            frame,
+            body,
+            &self.desktop,
+            hovered,
+            hover,
+            &mut self.wallpaper,
+        );
         ui::draw_desktop_menu(frame, &self.desktop, body);
     }
 
@@ -1498,7 +1510,9 @@ impl App {
     /// coordinates are rebased onto the pane's own screen, which is the only
     /// thing the child knows about.
     fn forward_mouse(&mut self, id: PaneId, ev: MouseEvent) {
-        let Some(pane) = self.panes.get(&id) else { return };
+        let Some(pane) = self.panes.get(&id) else {
+            return;
+        };
         let Some(t) = pane.term() else { return };
         if !t.mouse.tracking {
             return;
@@ -1652,7 +1666,9 @@ impl App {
                 let mut out = String::new();
                 let focus = self.focus();
                 for (id, r) in self.visible_rects() {
-                    let Some(p) = self.panes.get(&id) else { continue };
+                    let Some(p) = self.panes.get(&id) else {
+                        continue;
+                    };
                     // The mouse column is what makes "why does clicking in
                     // btop do nothing" answerable from a shell.
                     let mouse = match p.term() {
@@ -1740,10 +1756,7 @@ impl App {
                 self.draw();
                 // The honest answer is what is on screen, not what the flag
                 // says: an empty workspace shows the desktop without it.
-                format!(
-                    "ok {}\n",
-                    if self.desktop_visible() { "on" } else { "off" }
-                )
+                format!("ok {}\n", if self.desktop_visible() { "on" } else { "off" })
             }
             // The wallpaper: `wallpaper <path>` sets it, `wallpaper clear`
             // goes back to the gradient, no argument asks what it is.
@@ -1777,11 +1790,7 @@ impl App {
                 format!("ok {id}\n")
             }
             "mouse" => {
-                let parse = |i: usize| {
-                    args.get(i)
-                        .and_then(|v| v.parse::<u16>().ok())
-                        .ok_or(())
-                };
+                let parse = |i: usize| args.get(i).and_then(|v| v.parse::<u16>().ok()).ok_or(());
                 let (Ok(x), Ok(y)) = (parse(0), parse(1)) else {
                     return "error usage: mouse <x> <y> [move|click|right]\n".into();
                 };
@@ -1848,20 +1857,20 @@ impl App {
         };
         // Panel geometry is stable, so last frame's rects are the right thing
         // to hit-test against; this frame's rects are recorded for the next.
-        let panel_hover = self.ui.pointer().filter(|(_, y)| *y == panel_area.y).and_then(
-            |(x, _)| {
+        let panel_hover = self
+            .ui
+            .pointer()
+            .filter(|(_, y)| *y == panel_area.y)
+            .and_then(|(x, _)| {
                 self.panel
                     .buttons
                     .iter()
                     .position(|b| x >= b.x && x < b.x.saturating_add(b.width))
-            },
-        );
+            });
         let buttons = Panel::draw(frame.buffer_mut(), panel_area, self, &self.sys, panel_hover);
         for (i, b) in buttons.iter().enumerate() {
-            self.ui.hit(
-                Id::new("panel", i),
-                Rect::new(b.x, b.y, b.width, b.height),
-            );
+            self.ui
+                .hit(Id::new("panel", i), Rect::new(b.x, b.y, b.width, b.height));
         }
         self.panel.buttons = buttons;
 
@@ -1886,7 +1895,10 @@ impl App {
             let Some(pane) = self.panes.get_mut(&id) else {
                 continue;
             };
-            let header = Rect { height: r.height.min(1), ..r };
+            let header = Rect {
+                height: r.height.min(1),
+                ..r
+            };
             let content = Rect {
                 x: r.x,
                 y: r.y.saturating_add(1),
@@ -1918,7 +1930,10 @@ impl App {
             match pane {
                 Pane::Image(img) => ui::draw_image(&mut frame, content, img),
                 Pane::Chart(m) => {
-                    let pointer = self.ui.pointer().filter(|(px, py)| contains(content, *px, *py));
+                    let pointer = self
+                        .ui
+                        .pointer()
+                        .filter(|(px, py)| contains(content, *px, *py));
                     m.draw(frame.buffer_mut(), content, pointer);
                 }
                 Pane::Files(fp) => {
@@ -2019,11 +2034,7 @@ impl App {
                 Pointer::Default
             };
         }
-        if self
-            .header_close
-            .iter()
-            .any(|(_, r)| contains(*r, x, y))
-        {
+        if self.header_close.iter().any(|(_, r)| contains(*r, x, y)) {
             return Pointer::Pointer;
         }
         let on_header_row = self
@@ -2085,13 +2096,19 @@ pub fn parse_chord(text: &str) -> Option<KeyEvent> {
     let mut rest = text;
     loop {
         let lower = rest.to_ascii_lowercase();
-        if let Some(tail) = lower.strip_prefix("super+").or_else(|| lower.strip_prefix("meta+")) {
+        if let Some(tail) = lower
+            .strip_prefix("super+")
+            .or_else(|| lower.strip_prefix("meta+"))
+        {
             mods |= KeyModifiers::SUPER;
             rest = &rest[rest.len() - tail.len()..];
         } else if let Some(tail) = lower.strip_prefix("shift+") {
             mods |= KeyModifiers::SHIFT;
             rest = &rest[rest.len() - tail.len()..];
-        } else if let Some(tail) = lower.strip_prefix("ctrl+").or_else(|| lower.strip_prefix("control+")) {
+        } else if let Some(tail) = lower
+            .strip_prefix("ctrl+")
+            .or_else(|| lower.strip_prefix("control+"))
+        {
             mods |= KeyModifiers::CONTROL;
             rest = &rest[rest.len() - tail.len()..];
         } else if let Some(tail) = lower.strip_prefix("alt+") {
@@ -2203,7 +2220,9 @@ mod tests {
         App::new(tx, None, Box::new(KittySurface::default()))
     }
 
-    use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use ratatui::crossterm::event::{
+        Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    };
 
     fn press(app: &mut App, code: KeyCode) {
         app.handle(Msg::Input(Event::Key(KeyEvent::new(
@@ -2412,11 +2431,7 @@ mod tests {
         let rect = a.visible_rects()[0].1;
         // Row 0 of the listing is "..", row 1 is the first real entry.
         click(&mut a, rect.x + 2, rect.y + 2, MouseButton::Right);
-        let fp = a
-            .panes
-            .values()
-            .find_map(|p| p.files())
-            .expect("file pane");
+        let fp = a.panes.values().find_map(|p| p.files()).expect("file pane");
         assert!(fp.menu.is_some());
         assert_eq!(fp.selected, 1);
     }
@@ -2428,10 +2443,21 @@ mod tests {
         a.draw();
         let rect = a.visible_rects()[0].1;
         click(&mut a, rect.x + 2, rect.y + 2, MouseButton::Right);
-        assert!(a.panes.values().any(|p| p.files().map(|f| f.menu.is_some()).unwrap_or(false)));
+        assert!(a
+            .panes
+            .values()
+            .any(|p| p.files().map(|f| f.menu.is_some()).unwrap_or(false)));
         // Far from the menu, in the same pane's listing.
-        click(&mut a, rect.x + rect.width.saturating_sub(1), rect.y + rect.height.saturating_sub(1), MouseButton::Left);
-        assert!(a.panes.values().all(|p| p.files().map(|f| f.menu.is_none()).unwrap_or(true)));
+        click(
+            &mut a,
+            rect.x + rect.width.saturating_sub(1),
+            rect.y + rect.height.saturating_sub(1),
+            MouseButton::Left,
+        );
+        assert!(a
+            .panes
+            .values()
+            .all(|p| p.files().map(|f| f.menu.is_none()).unwrap_or(true)));
         assert_eq!(a.pane_count(), 1, "dismissing a menu is not a tile action");
     }
 

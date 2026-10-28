@@ -169,7 +169,11 @@ impl Tiles {
     /// The visible position under a cell, if it is inside the body.
     pub fn at(&self, area: Rect, x: u16, y: u16) -> Option<usize> {
         let left = area.x + self.pad;
-        if x < left || y < area.y || x >= left + self.cols as u16 * self.w || y >= area.y + area.height {
+        if x < left
+            || y < area.y
+            || x >= left + self.cols as u16 * self.w
+            || y >= area.y + area.height
+        {
             return None;
         }
         let col = ((x - left) / self.w) as usize;
@@ -566,9 +570,7 @@ impl FilePane {
     /// actually happened, so a failed rename can leave the dialog up with an
     /// error instead of vanishing.
     fn apply_dialog(&mut self) -> Option<String> {
-        let Some(dialog) = self.dialog.take() else {
-            return None;
-        };
+        let dialog = self.dialog.take()?;
         let result = match &dialog.kind {
             DialogKind::NewFolder => {
                 let name = dialog.input.trim().to_string();
@@ -663,12 +665,10 @@ impl FilePane {
             KeyCode::Backspace => {
                 dialog.input.pop();
             }
-            KeyCode::Char(c) if !ev.modifiers.contains(KeyModifiers::CONTROL) => {
-                // A file name may contain anything but `/` and NUL; blocking
-                // the separator here is cheaper than a failed rename later.
-                if c != '/' {
-                    dialog.input.push(c);
-                }
+            // A file name may contain anything but `/` and NUL; blocking the
+            // separator here is cheaper than a failed rename later.
+            KeyCode::Char(c) if !ev.modifiers.contains(KeyModifiers::CONTROL) && c != '/' => {
+                dialog.input.push(c);
             }
             _ => {}
         }
@@ -699,12 +699,10 @@ impl FilePane {
         match item {
             MenuItem::Open => self.activate(),
             MenuItem::OpenInPane => self.open_in_pane(),
-            MenuItem::SetWallpaper => {
-                match self.selected_entry().filter(|e| !e.is_dir).cloned() {
-                    Some(e) => FileAction::SetWallpaper(e.path),
-                    None => FileAction::None,
-                }
-            }
+            MenuItem::SetWallpaper => match self.selected_entry().filter(|e| !e.is_dir).cloned() {
+                Some(e) => FileAction::SetWallpaper(e.path),
+                None => FileAction::None,
+            },
             MenuItem::Rename => {
                 if let Some(e) = self.selected_entry().filter(|e| !e.is_parent()).cloned() {
                     self.start_dialog(DialogKind::Rename(e.path));
@@ -877,7 +875,11 @@ impl FilePane {
                 // Three *rows* of tiles, not three tiles: the wheel scrolls the
                 // view, it does not walk the selection across it.
                 let step = 3 * self.tiles.cols as isize;
-                self.move_sel(if self.view == FileView::Grid { -step } else { -3 });
+                self.move_sel(if self.view == FileView::Grid {
+                    -step
+                } else {
+                    -3
+                });
                 FileAction::None
             }
             MouseEventKind::ScrollDown => {
@@ -943,7 +945,13 @@ pub fn menu_rect(menu: &Menu, items: &[MenuItem], screen: Rect) -> Rect {
 }
 
 /// Which menu row is under `(x, y)`, if any.
-pub fn menu_item_at(menu: &Menu, items: &[MenuItem], screen: Rect, x: u16, y: u16) -> Option<usize> {
+pub fn menu_item_at(
+    menu: &Menu,
+    items: &[MenuItem],
+    screen: Rect,
+    x: u16,
+    y: u16,
+) -> Option<usize> {
     popup_item_at(menu_rect(menu, items, screen), items.len(), x, y)
 }
 
@@ -957,7 +965,10 @@ pub fn popup_rect(anchor: (u16, u16), labels: &[&str], screen: Rect) -> Rect {
     let width = (labels.iter().map(|l| l.chars().count()).max().unwrap_or(0) + 4) as u16;
     let height = labels.len() as u16 + 2;
     let max_x = screen.x.saturating_add(screen.width).saturating_sub(width);
-    let max_y = screen.y.saturating_add(screen.height).saturating_sub(height);
+    let max_y = screen
+        .y
+        .saturating_add(screen.height)
+        .saturating_sub(height);
     Rect {
         x: anchor.0.min(max_x).max(screen.x),
         y: anchor.1.min(max_y).max(screen.y),
@@ -1175,7 +1186,6 @@ mod tests {
         assert_eq!(fp.selected, 3 * cols);
     }
 
-
     // The tests need real directories: rename and delete are filesystem calls,
     // and mocking `std::fs` would test the mock instead of the pane.
     struct TempDir(PathBuf);
@@ -1289,7 +1299,11 @@ mod tests {
         let t = TempDir::new("open");
         t.file("notes.txt");
         let mut fp = pane(&t);
-        let idx = fp.entries.iter().position(|e| e.name == "notes.txt").unwrap();
+        let idx = fp
+            .entries
+            .iter()
+            .position(|e| e.name == "notes.txt")
+            .unwrap();
         fp.select(idx);
         match fp.activate() {
             FileAction::Open(p, is_dir) => {
@@ -1340,7 +1354,10 @@ mod tests {
         fp.dialog_key(key(KeyCode::Enter));
         assert!(!t.0.join("old.txt").exists());
         assert!(t.0.join("new.txt").exists());
-        assert_eq!(fp.selected_entry().map(|e| e.name.as_str()), Some("new.txt"));
+        assert_eq!(
+            fp.selected_entry().map(|e| e.name.as_str()),
+            Some("new.txt")
+        );
     }
 
     #[test]
@@ -1348,7 +1365,11 @@ mod tests {
         let t = TempDir::new("delete");
         t.file("junk.txt");
         let mut fp = pane(&t);
-        let idx = fp.entries.iter().position(|e| e.name == "junk.txt").unwrap();
+        let idx = fp
+            .entries
+            .iter()
+            .position(|e| e.name == "junk.txt")
+            .unwrap();
         fp.select(idx);
         fp.start_dialog(DialogKind::Delete(t.0.join("junk.txt"), false));
         fp.dialog_key(key(KeyCode::Char('n')));
@@ -1402,7 +1423,10 @@ mod tests {
             "a folder is not a picture"
         );
         // Nothing selected: only the rows that do not need a file.
-        assert_eq!(menu_items(None), vec![MenuItem::NewFolder, MenuItem::Refresh]);
+        assert_eq!(
+            menu_items(None),
+            vec![MenuItem::NewFolder, MenuItem::Refresh]
+        );
         // `..` is a way out of the folder, not a file to rename or delete.
         assert_eq!(
             menu_items(Some(&entry("..", true))),
@@ -1473,7 +1497,10 @@ mod tests {
             row,
             modifiers: KeyModifiers::empty(),
         };
-        assert_eq!(fp.on_mouse(ev(5), content, Rect::new(0, 0, 80, 24)), FileAction::None);
+        assert_eq!(
+            fp.on_mouse(ev(5), content, Rect::new(0, 0, 80, 24)),
+            FileAction::None
+        );
         assert_eq!(fp.selected_entry().map(|e| e.name.as_str()), Some("a.txt"));
         // The same row again within the double-click window opens it.
         assert!(matches!(
@@ -1495,7 +1522,10 @@ mod tests {
             row: 5,
             modifiers: KeyModifiers::empty(),
         };
-        assert_eq!(fp.on_mouse(ev, content, Rect::new(0, 0, 80, 24)), FileAction::None);
+        assert_eq!(
+            fp.on_mouse(ev, content, Rect::new(0, 0, 80, 24)),
+            FileAction::None
+        );
         assert_eq!(fp.selected_entry().map(|e| e.name.as_str()), Some("a.txt"));
         let menu = fp.menu.as_ref().expect("menu opens");
         assert_eq!((menu.x, menu.y), (7, 5));
@@ -1577,7 +1607,11 @@ mod tests {
         let mut fp = pane(&t);
         fp.start_dialog(DialogKind::NewFolder);
         let action = fp.on_key(key(KeyCode::Char('q')));
-        assert_eq!(action, FileAction::None, "q must not close the pane while typing");
+        assert_eq!(
+            action,
+            FileAction::None,
+            "q must not close the pane while typing"
+        );
         assert!(fp.dialog.is_some());
         assert_eq!(fp.dialog.as_ref().unwrap().input, "q");
     }

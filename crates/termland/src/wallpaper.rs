@@ -105,7 +105,8 @@ impl Wallpaper {
     /// not be a wallpaper must not become the one the session loads next time,
     /// or a typo at a prompt costs a boot with no background.
     pub fn set(&mut self, path: &Path) -> Result<(), String> {
-        let img = decode(path).map_err(|e| format!("can't use {} as a wallpaper: {e}", path.display()))?;
+        let img = decode(path)
+            .map_err(|e| format!("can't use {} as a wallpaper: {e}", path.display()))?;
         self.path = Some(path.to_path_buf());
         self.source = Some(img);
         // Force a fresh sampling: the new picture has nothing to do with the
@@ -329,7 +330,10 @@ mod tests {
         let area = Rect::new(0, 0, 20, 10);
         let cells = w.cells_for(area);
         assert_eq!(cells.len(), 200, "one pair per cell");
-        assert!(cells.iter().any(|(top, bottom)| top != bottom), "the picture is not flat");
+        assert!(
+            cells.iter().any(|(top, bottom)| top != bottom),
+            "the picture is not flat"
+        );
 
         // A second call at the same size is the cached one, not a resample.
         assert_eq!(w.cells_for(area).len(), 200);

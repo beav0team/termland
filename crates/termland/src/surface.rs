@@ -27,6 +27,8 @@
 //! buffer so ratatui's diffing still works, which is why the kitty path pays
 //! one memcpy per frame that a tier-2 frontend will not.
 
+use crate::images::{ImageLayer, Placement};
+use crate::widgets::Pointer;
 use ratatui::backend::CrosstermBackend;
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{
@@ -36,8 +38,6 @@ use ratatui::crossterm::event::{
 use ratatui::crossterm::execute;
 use ratatui::layout::Rect;
 use ratatui::widgets::{StatefulWidget, Widget};
-use crate::images::{ImageLayer, Placement};
-use crate::widgets::Pointer;
 use ratatui::Terminal;
 use std::fmt::Debug;
 use std::io::{self, Stdout, Write};
@@ -88,7 +88,12 @@ impl Frame {
     }
 
     /// Draw a stateful widget (images) into this frame.
-    pub fn render_stateful<W: StatefulWidget>(&mut self, widget: W, area: Rect, state: &mut W::State) {
+    pub fn render_stateful<W: StatefulWidget>(
+        &mut self,
+        widget: W,
+        area: Rect,
+        state: &mut W::State,
+    ) {
         widget.render(area, &mut self.buf, state);
     }
 
@@ -393,7 +398,10 @@ mod tests {
     #[test]
     fn render_puts_a_widget_in_the_buffer() {
         let mut f = Frame::new(Rect::new(0, 0, 12, 2));
-        f.render(ratatui::widgets::Paragraph::new(Line::from("hello")), f.area());
+        f.render(
+            ratatui::widgets::Paragraph::new(Line::from("hello")),
+            f.area(),
+        );
         let text: String = (0..12).map(|x| f.buffer()[(x, 0)].symbol()).collect();
         assert!(text.starts_with("hello"), "got {text:?}");
     }
@@ -402,7 +410,8 @@ mod tests {
     fn styles_reach_the_buffer() {
         let mut f = Frame::new(Rect::new(0, 0, 4, 1));
         f.render(
-            ratatui::widgets::Paragraph::new("ab").style(Style::default().fg(ratatui::style::Color::Red)),
+            ratatui::widgets::Paragraph::new("ab")
+                .style(Style::default().fg(ratatui::style::Color::Red)),
             f.area(),
         );
         assert_eq!(f.buffer()[(0, 0)].fg, ratatui::style::Color::Red);

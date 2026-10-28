@@ -1,11 +1,11 @@
 //! All drawing. Nothing here mutates app state except through `Frame`.
 
+use crate::surface::Frame;
 use ratatui::buffer::CellDiffOption;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Clear, Paragraph};
-use crate::surface::Frame;
 use ratatui_image::{Resize, StatefulImage};
 use unicode_width::UnicodeWidthStr;
 
@@ -46,7 +46,11 @@ pub fn draw_header(
     if area.width == 0 || area.height == 0 {
         return close;
     }
-    let bg = if focused { theme::ACCENT } else { theme::BG_ALT };
+    let bg = if focused {
+        theme::ACCENT
+    } else {
+        theme::BG_ALT
+    };
     let buf = f.buffer_mut();
     for x in area.x..area.x + area.width {
         buf[(x, area.y)]
@@ -178,11 +182,10 @@ fn draw_scrollbar(f: &mut Frame, area: Rect, pane: &TermPane, h: u16, w: u16) {
     let scroll = pane.scroll_offset as u32;
     let max_scroll = total.saturating_sub(visible);
     let thumb_size = (visible * visible / total.max(1)).max(1);
-    let thumb_pos = if max_scroll > 0 {
-        scroll * (visible - thumb_size) / max_scroll
-    } else {
-        0
-    };
+    let thumb_pos = scroll
+        .saturating_mul(visible.saturating_sub(thumb_size))
+        .checked_div(max_scroll)
+        .unwrap_or(0);
     let bar_x = area.x + area.width - 1;
     for y in 0..h {
         let py = area.y + y;
@@ -457,7 +460,6 @@ pub fn draw_files(
     }
 }
 
-
 /// Split a name into at most `lines` rows of `width` cells. The last row gets
 /// an ellipsis rather than a cut word: a file manager that silently hides the
 /// end of a name is how people delete the wrong file.
@@ -477,7 +479,7 @@ fn wrap_name(name: &str, width: usize, lines: usize) -> Vec<String> {
         // are a break at all: after a space, a dot, an underscore or a dash.
         // `keyboard.jpg` in two ten-wide rows reads "keyboard." / "jpg", and
         // `tyre-prices-2026-09-26.csv` keeps its extension on the second row.
-        let balanced = (chars.len() + lines - 1) / lines;
+        let balanced = chars.len().div_ceil(lines);
         let mut per = balanced;
         let mut best = usize::MAX;
         for (i, c) in chars.iter().enumerate() {
@@ -504,7 +506,11 @@ fn wrap_name(name: &str, width: usize, lines: usize) -> Vec<String> {
     while i < chars.len() && out.len() < lines {
         let last_line = out.len() + 1 == lines;
         let remaining = chars.len() - i;
-        let take = if last_line { remaining } else { per.min(remaining) };
+        let take = if last_line {
+            remaining
+        } else {
+            per.min(remaining)
+        };
         if take > width {
             // Room for the ellipsis, and the row before it stays a whole word
             // where one fits.
@@ -589,13 +595,11 @@ fn draw_tile(
             y,
             line,
             name_w.saturating_sub(pad),
-            Style::default()
-                .fg(theme::FG)
-                .add_modifier(if selected {
-                    Modifier::BOLD
-                } else {
-                    Modifier::empty()
-                }),
+            Style::default().fg(theme::FG).add_modifier(if selected {
+                Modifier::BOLD
+            } else {
+                Modifier::empty()
+            }),
         );
     }
 }
@@ -652,7 +656,9 @@ pub fn draw_file_overlay(f: &mut Frame, fp: &FilePane, screen: Rect) {
                 Span::styled(" ", Style::default()),
                 Span::styled(
                     dialog.prompt(),
-                    Style::default().fg(theme::WARN).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(theme::WARN)
+                        .add_modifier(Modifier::BOLD),
                 ),
             ]))
             .style(Style::default().bg(theme::BG));
@@ -700,7 +706,6 @@ pub fn draw_image(f: &mut Frame, area: Rect, img: &mut ImagePane) {
     f.render_stateful(widget, area, &mut img.proto);
 }
 
-
 pub fn draw_help(f: &mut Frame, area: Rect) {
     let w = area.width.saturating_sub(4).min(72);
     let h = area.height.saturating_sub(2).min(19);
@@ -718,7 +723,9 @@ pub fn draw_help(f: &mut Frame, area: Rect) {
         .title(Line::from(vec![
             Span::styled(
                 " termland ",
-                Style::default().fg(theme::ACCENT).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(theme::ACCENT)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled("keys · mouse", Style::default().fg(theme::FG_DIM)),
         ]))
@@ -729,60 +736,103 @@ pub fn draw_help(f: &mut Frame, area: Rect) {
     let key = |k: &'static str| Span::styled(k, Style::default().fg(theme::ACCENT));
     let d = |t: &'static str| Span::styled(t, Style::default().fg(theme::FG_DIM));
     let hi = |t: &'static str| {
-        Span::styled(t, Style::default().fg(theme::FG).add_modifier(Modifier::BOLD))
+        Span::styled(
+            t,
+            Style::default().fg(theme::FG).add_modifier(Modifier::BOLD),
+        )
     };
     let lines = vec![
         Line::from(""),
         Line::from(vec![
-            Span::styled("  SUPER ", Style::default().fg(theme::ACCENT_FG).bg(theme::ACCENT)),
-            Span::styled(" the desktop key          ", Style::default().fg(theme::FG_DIM)),
-            Span::styled(" LEADER ", Style::default().fg(theme::ACCENT_FG).bg(theme::BG_ALT)),
+            Span::styled(
+                "  SUPER ",
+                Style::default().fg(theme::ACCENT_FG).bg(theme::ACCENT),
+            ),
+            Span::styled(
+                " the desktop key          ",
+                Style::default().fg(theme::FG_DIM),
+            ),
+            Span::styled(
+                " LEADER ",
+                Style::default().fg(theme::ACCENT_FG).bg(theme::BG_ALT),
+            ),
             d(" Ctrl+Space"),
         ]),
         Line::from(vec![
-            key("   Q "), d("close pane      "), key("E "), d("file manager   "),
-            key("   v | "), d("split side-by-side"),
+            key("   Q "),
+            d("close pane      "),
+            key("E "),
+            d("file manager   "),
+            key("   v | "),
+            d("split side-by-side"),
         ]),
         Line::from(vec![
-            key("   R "), d("app menu        "), key("V "), d("flip split     "),
-            key("   s - "), d("split stacked"),
+            key("   R "),
+            d("app menu        "),
+            key("V "),
+            d("flip split     "),
+            key("   s - "),
+            d("split stacked"),
         ]),
         Line::from(vec![
-            key("   F "), d("zoom pane       "), key("N "), d("new shell      "),
-            key("   H J K L "), d("resize"),
+            key("   F "),
+            d("zoom pane       "),
+            key("N "),
+            d("new shell      "),
+            key("   H J K L "),
+            d("resize"),
         ]),
         Line::from(vec![
-            key("   H J K L "), d("focus       "), key("⇧ H J K L "), d("move pane  "),
-            key("   h j k l "), d("focus"),
+            key("   H J K L "),
+            d("focus       "),
+            key("⇧ H J K L "),
+            d("move pane  "),
+            key("   h j k l "),
+            d("focus"),
         ]),
         Line::from(vec![
-            key("   1…9 "), d("workspace    "), key("⇧ 1…9 "), d("send to ws  "),
-            key("   Tab "), d("cycle panes"),
+            key("   1…9 "),
+            d("workspace    "),
+            key("⇧ 1…9 "),
+            d("send to ws  "),
+            key("   Tab "),
+            d("cycle panes"),
         ]),
         Line::from(vec![
-            key("   D "), d("desktop         "), key("⇧ E "), d("files here     "),
-            key("   G "), d("graphs"),
+            key("   D "),
+            d("desktop         "),
+            key("⇧ E "),
+            d("files here     "),
+            key("   G "),
+            d("graphs"),
         ]),
         Line::from(vec![
-            key("   N "), d("new shell       "), key("W "), d("web page       "),
-            key("   ? "), d("this help"),
+            key("   N "),
+            d("new shell       "),
+            key("W "),
+            d("web page       "),
+            key("   ? "),
+            d("this help"),
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("  MOUSE ", Style::default().fg(theme::ACCENT_FG).bg(theme::ACCENT)),
+            Span::styled(
+                "  MOUSE ",
+                Style::default().fg(theme::ACCENT_FG).bg(theme::ACCENT),
+            ),
             d(" click focuses · "),
             hi("×"),
             d(" closes · drag a divider to resize"),
         ]),
-        Line::from(vec![
-            d("         wheel scrolls · drag selects · right-click for the file menu"),
-        ]),
-        Line::from(vec![
-            d("         children that ask for the mouse (btop, hx, nmtui) get real clicks"),
-        ]),
-        Line::from(vec![
-            d("         on the desktop: click selects, a second click opens, Esc leaves"),
-        ]),
+        Line::from(vec![d(
+            "         wheel scrolls · drag selects · right-click for the file menu",
+        )]),
+        Line::from(vec![d(
+            "         children that ask for the mouse (btop, hx, nmtui) get real clicks",
+        )]),
+        Line::from(vec![d(
+            "         on the desktop: click selects, a second click opens, Esc leaves",
+        )]),
         Line::from(""),
         Line::from(vec![
             Span::styled("  FILE MANAGER  ", Style::default().fg(theme::FG_DIM)),
@@ -824,7 +874,12 @@ pub fn draw_menu(f: &mut Frame, area: Rect, app: &App) -> Vec<(Rect, String)> {
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(theme::ACCENT))
         .title(Line::from(vec![
-            Span::styled(" termland ", Style::default().fg(theme::ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                " termland ",
+                Style::default()
+                    .fg(theme::ACCENT)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" apps ", Style::default().fg(theme::FG_DIM)),
         ]))
         .style(Style::default().bg(theme::BG));
@@ -855,9 +910,10 @@ pub fn draw_menu(f: &mut Frame, area: Rect, app: &App) -> Vec<(Rect, String)> {
 
     // Group apps by category.
     for category in app.apps.categories() {
-        lines.push(Line::from(vec![
-            Span::styled(format!("  {category}"), Style::default().fg(theme::FG).add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("  {category}"),
+            Style::default().fg(theme::FG).add_modifier(Modifier::BOLD),
+        )]));
         for app_def in app.apps.by_category(category) {
             let desc = app_def.description.as_deref().unwrap_or("");
             let cmd_short = app_def.command.chars().take(30).collect::<String>();

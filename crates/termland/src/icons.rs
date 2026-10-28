@@ -57,8 +57,8 @@ impl Kind {
             }
             "pdf" => Kind::Pdf,
             "rs" | "toml" | "json" | "yaml" | "yml" | "js" | "ts" | "tsx" | "jsx" | "py" | "c"
-            | "h" | "cpp" | "go" | "sh" | "lua" | "kt" | "java" | "html" | "css" | "scss" | "md"
-            | "sql" => Kind::Code,
+            | "h" | "cpp" | "go" | "sh" | "lua" | "kt" | "java" | "html" | "css" | "scss"
+            | "md" | "sql" => Kind::Code,
             "txt" | "log" | "conf" | "ini" | "csv" | "env" => Kind::Text,
             _ => Kind::File,
         }

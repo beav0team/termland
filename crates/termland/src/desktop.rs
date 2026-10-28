@@ -15,9 +15,7 @@
 //! wallpaper, reread the folder, leave — which is the one thing a desktop does
 //! that a file manager cannot do for it.
 
-use ratatui::crossterm::event::{
-    KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind,
-};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 use std::fs;
 use std::path::PathBuf;
@@ -225,7 +223,7 @@ impl Desktop {
     /// The rows the menu would have. Only a picture gets "Set as wallpaper".
     pub fn menu_items(&self) -> Vec<MenuItem> {
         let mut items = Vec::with_capacity(4);
-        let on_icon = self.menu.as_ref().map_or(false, |m| m.on_icon);
+        let on_icon = self.menu.as_ref().is_some_and(|m| m.on_icon);
         let entry = if on_icon {
             self.entries.get(self.selected)
         } else {
@@ -489,7 +487,10 @@ mod tests {
     #[test]
     fn showing_the_desktop_is_the_same_question_as_having_nothing_tiled() {
         let mut d = desktop_with(&["a"]);
-        assert!(!d.shows(true), "panes are on screen, so they are the session");
+        assert!(
+            !d.shows(true),
+            "panes are on screen, so they are the session"
+        );
         assert!(d.shows(false), "an empty workspace is a desktop");
         d.visible = true;
         assert!(d.shows(true), "asked for explicitly, panes or not");
@@ -504,7 +505,11 @@ mod tests {
         let mut d = Desktop::new();
         d.set_dir(dir.clone());
         let names: Vec<&str> = d.entries.iter().map(|e| e.name.as_str()).collect();
-        assert_eq!(names, vec!["Photos", "note.txt"], "folders first, no dotfiles");
+        assert_eq!(
+            names,
+            vec!["Photos", "note.txt"],
+            "folders first, no dotfiles"
+        );
         assert!(d.entries[0].is_dir);
         let _ = fs::remove_dir_all(&dir);
     }
@@ -552,7 +557,10 @@ mod tests {
         // On an icon: it selects that icon and offers to open it.
         let r = d.tile_rect(area, 0).expect("visible");
         assert_eq!(
-            d.on_mouse(mouse(MouseEventKind::Down(MouseButton::Right), r.x + 1, r.y + 1), area),
+            d.on_mouse(
+                mouse(MouseEventKind::Down(MouseButton::Right), r.x + 1, r.y + 1),
+                area
+            ),
             DesktopAction::None
         );
         assert_eq!(d.selected, 0, "the menu's subject is the icon under it");
@@ -567,13 +575,22 @@ mod tests {
         );
 
         // On the bare wallpaper: no icon to speak of, so no "Open".
-        d.on_mouse(mouse(MouseEventKind::Down(MouseButton::Right), 59, 23), area);
+        d.on_mouse(
+            mouse(MouseEventKind::Down(MouseButton::Right), 59, 23),
+            area,
+        );
         assert_eq!(d.menu_items(), vec![MenuItem::Refresh, MenuItem::Leave]);
 
         // A text file is not a wallpaper either.
         let r = d.tile_rect(area, 1).expect("visible");
-        d.on_mouse(mouse(MouseEventKind::Down(MouseButton::Right), r.x + 1, r.y + 1), area);
-        assert_eq!(d.menu_items(), vec![MenuItem::Open, MenuItem::Refresh, MenuItem::Leave]);
+        d.on_mouse(
+            mouse(MouseEventKind::Down(MouseButton::Right), r.x + 1, r.y + 1),
+            area,
+        );
+        assert_eq!(
+            d.menu_items(),
+            vec![MenuItem::Open, MenuItem::Refresh, MenuItem::Leave]
+        );
     }
 
     #[test]
@@ -582,7 +599,10 @@ mod tests {
         let mut d = desktop_with(&["sky.png"]);
         d.set_viewport(area);
         let r = d.tile_rect(area, 0).unwrap();
-        d.on_mouse(mouse(MouseEventKind::Down(MouseButton::Right), r.x + 1, r.y + 1), area);
+        d.on_mouse(
+            mouse(MouseEventKind::Down(MouseButton::Right), r.x + 1, r.y + 1),
+            area,
+        );
 
         // The row, clicked where the menu put it.
         let rect = d.menu_rect(area).expect("a menu is up");
@@ -592,7 +612,11 @@ mod tests {
             .position(|i| *i == MenuItem::SetWallpaper)
             .expect("the row is there");
         match d.on_mouse(
-            mouse(MouseEventKind::Down(MouseButton::Left), rect.x + 2, rect.y + 1 + row as u16),
+            mouse(
+                MouseEventKind::Down(MouseButton::Left),
+                rect.x + 2,
+                rect.y + 1 + row as u16,
+            ),
             area,
         ) {
             DesktopAction::SetWallpaper(p) => assert_eq!(p, PathBuf::from("/x/sky.png")),

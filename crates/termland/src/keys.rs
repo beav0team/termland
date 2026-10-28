@@ -159,9 +159,7 @@ fn csi_tilde(out: &mut Vec<u8>, code: u8, mparam: u8) {
 /// so both spellings are accepted; `crossterm` surfaces NUL as `Char('\0')`
 /// and as `KeyCode::Null` depending on version and terminal.
 pub fn is_leader(ev: &KeyEvent) -> bool {
-    if ev.kind != KeyEventKind::Press
-        && ev.kind != KeyEventKind::Repeat
-    {
+    if ev.kind != KeyEventKind::Press && ev.kind != KeyEventKind::Repeat {
         return false;
     }
     match ev.code {
@@ -190,20 +188,38 @@ mod tests {
 
     #[test]
     fn ctrl_letters_become_c0() {
-        assert_eq!(encode(k(KeyCode::Char('c'), KeyModifiers::CONTROL)).unwrap(), vec![3]);
-        assert_eq!(encode(k(KeyCode::Char('d'), KeyModifiers::CONTROL)).unwrap(), vec![4]);
-        assert_eq!(encode(k(KeyCode::Char('['), KeyModifiers::CONTROL)).unwrap(), vec![27]);
-        assert_eq!(encode(k(KeyCode::Char(' '), KeyModifiers::CONTROL)).unwrap(), vec![0]);
+        assert_eq!(
+            encode(k(KeyCode::Char('c'), KeyModifiers::CONTROL)).unwrap(),
+            vec![3]
+        );
+        assert_eq!(
+            encode(k(KeyCode::Char('d'), KeyModifiers::CONTROL)).unwrap(),
+            vec![4]
+        );
+        assert_eq!(
+            encode(k(KeyCode::Char('['), KeyModifiers::CONTROL)).unwrap(),
+            vec![27]
+        );
+        assert_eq!(
+            encode(k(KeyCode::Char(' '), KeyModifiers::CONTROL)).unwrap(),
+            vec![0]
+        );
     }
 
     #[test]
     fn alt_prefixes_escape() {
-        assert_eq!(encode(k(KeyCode::Char('b'), KeyModifiers::ALT)).unwrap(), b"\x1bb");
+        assert_eq!(
+            encode(k(KeyCode::Char('b'), KeyModifiers::ALT)).unwrap(),
+            b"\x1bb"
+        );
     }
 
     #[test]
     fn arrows_and_modifiers() {
-        assert_eq!(encode(k(KeyCode::Up, KeyModifiers::NONE)).unwrap(), b"\x1b[A");
+        assert_eq!(
+            encode(k(KeyCode::Up, KeyModifiers::NONE)).unwrap(),
+            b"\x1b[A"
+        );
         assert_eq!(
             encode(k(KeyCode::Up, KeyModifiers::SHIFT)).unwrap(),
             b"\x1b[1;2A"
@@ -212,19 +228,43 @@ mod tests {
             encode(k(KeyCode::Right, KeyModifiers::CONTROL)).unwrap(),
             b"\x1b[1;5C"
         );
-        assert_eq!(encode(k(KeyCode::Delete, KeyModifiers::NONE)).unwrap(), b"\x1b[3~");
-        assert_eq!(encode(k(KeyCode::F(1), KeyModifiers::NONE)).unwrap(), b"\x1b[P");
-        assert_eq!(encode(k(KeyCode::F(5), KeyModifiers::NONE)).unwrap(), b"\x1b[15~");
-        assert_eq!(encode(k(KeyCode::F(5), KeyModifiers::SHIFT)).unwrap(), b"\x1b[15;2~");
+        assert_eq!(
+            encode(k(KeyCode::Delete, KeyModifiers::NONE)).unwrap(),
+            b"\x1b[3~"
+        );
+        assert_eq!(
+            encode(k(KeyCode::F(1), KeyModifiers::NONE)).unwrap(),
+            b"\x1b[P"
+        );
+        assert_eq!(
+            encode(k(KeyCode::F(5), KeyModifiers::NONE)).unwrap(),
+            b"\x1b[15~"
+        );
+        assert_eq!(
+            encode(k(KeyCode::F(5), KeyModifiers::SHIFT)).unwrap(),
+            b"\x1b[15;2~"
+        );
     }
 
     #[test]
     fn editing_keys() {
-        assert_eq!(encode(k(KeyCode::Enter, KeyModifiers::NONE)).unwrap(), b"\r");
+        assert_eq!(
+            encode(k(KeyCode::Enter, KeyModifiers::NONE)).unwrap(),
+            b"\r"
+        );
         assert_eq!(encode(k(KeyCode::Tab, KeyModifiers::NONE)).unwrap(), b"\t");
-        assert_eq!(encode(k(KeyCode::BackTab, KeyModifiers::SHIFT)).unwrap(), b"\x1b[Z");
-        assert_eq!(encode(k(KeyCode::Backspace, KeyModifiers::NONE)).unwrap(), vec![0x7f]);
-        assert_eq!(encode(k(KeyCode::Esc, KeyModifiers::NONE)).unwrap(), vec![0x1b]);
+        assert_eq!(
+            encode(k(KeyCode::BackTab, KeyModifiers::SHIFT)).unwrap(),
+            b"\x1b[Z"
+        );
+        assert_eq!(
+            encode(k(KeyCode::Backspace, KeyModifiers::NONE)).unwrap(),
+            vec![0x7f]
+        );
+        assert_eq!(
+            encode(k(KeyCode::Esc, KeyModifiers::NONE)).unwrap(),
+            vec![0x1b]
+        );
     }
 
     #[test]

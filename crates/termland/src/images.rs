@@ -335,9 +335,15 @@ mod tests {
         l.frame(&[tl(a.clone(), 1, 0, 0)]);
         let bytes = l.frame(&[tl(a, 1, 5, 3)]);
         let text = String::from_utf8_lossy(&bytes);
-        assert!(text.contains("a=p"), "a move must place, not delete: {text}");
+        assert!(
+            text.contains("a=p"),
+            "a move must place, not delete: {text}"
+        );
         assert!(!text.contains("a=d"), "a move must not delete: {text}");
-        assert!(text.contains("p=1"), "the placement id is what makes it a move");
+        assert!(
+            text.contains("p=1"),
+            "the placement id is what makes it a move"
+        );
     }
 
     #[test]
@@ -349,7 +355,10 @@ mod tests {
         let bytes = l.frame(&[]);
         let text = String::from_utf8_lossy(&bytes);
         assert!(text.contains("a=d,d=i"), "{text}");
-        assert!(text.contains("p=7"), "deletion must name the placement: {text}");
+        assert!(
+            text.contains("p=7"),
+            "deletion must name the placement: {text}"
+        );
         // Never a blanket delete: a pane may have placed images of its own.
         assert!(!text.contains("d=A") && !text.contains("d=a,"), "{text}");
     }
@@ -381,7 +390,10 @@ mod tests {
     #[test]
     fn behind_is_below_cell_backgrounds_and_normal_is_not() {
         assert_eq!(Z::Behind.kitty(), i32::MIN);
-        assert!(Z::Behind.kitty() < i32::MIN / 2, "< INT32_MIN/2 per the spec");
+        assert!(
+            Z::Behind.kitty() < i32::MIN / 2,
+            "< INT32_MIN/2 per the spec"
+        );
         assert_eq!(Z::Normal.kitty(), 0);
     }
 
@@ -389,7 +401,7 @@ mod tests {
     fn a_zero_sized_placement_is_ignored() {
         let mut l = ImageLayer::new();
         let p = Placement::new(1, src(1), Rect::new(0, 0, 0, 4), Z::Behind);
-        assert!(missing(&mut l, &[p.clone()]).is_empty());
+        assert!(missing(&mut l, std::slice::from_ref(&p)).is_empty());
         assert!(l.frame(&[p]).is_empty());
     }
 

@@ -57,7 +57,12 @@ pub fn split_rect(area: Rect, dir: Dir, ratio: f32) -> (Rect, Rect) {
             let a = ((w as f32 * r).round() as u16).clamp(1.min(w), w.saturating_sub(1).max(1));
             (
                 Rect::new(area.x, area.y, a, area.height),
-                Rect::new(area.x.saturating_add(a), area.y, w.saturating_sub(a), area.height),
+                Rect::new(
+                    area.x.saturating_add(a),
+                    area.y,
+                    w.saturating_sub(a),
+                    area.height,
+                ),
             )
         }
         Dir::Vertical => {
@@ -65,7 +70,12 @@ pub fn split_rect(area: Rect, dir: Dir, ratio: f32) -> (Rect, Rect) {
             let a = ((h as f32 * r).round() as u16).clamp(1.min(h), h.saturating_sub(1).max(1));
             (
                 Rect::new(area.x, area.y, area.width, a),
-                Rect::new(area.x, area.y.saturating_add(a), area.width, h.saturating_sub(a)),
+                Rect::new(
+                    area.x,
+                    area.y.saturating_add(a),
+                    area.width,
+                    h.saturating_sub(a),
+                ),
             )
         }
     }
@@ -272,7 +282,10 @@ impl Node {
         match self {
             Node::Leaf(_) => None,
             Node::Split {
-                dir, ratio, first, second,
+                dir,
+                ratio,
+                first,
+                second,
             } => {
                 let (a_rect, b_rect) = split_rect(area, *dir, *ratio);
                 match dir {
@@ -304,7 +317,10 @@ impl Node {
         match self {
             Node::Leaf(_) => false,
             Node::Split {
-                dir, ratio, first, second,
+                dir,
+                ratio,
+                first,
+                second,
             } => {
                 let (a_rect, b_rect) = split_rect(area, *dir, *ratio);
                 let on_divider = match dir {
@@ -329,8 +345,7 @@ impl Node {
                     *ratio = new_ratio.clamp(0.1, 0.9);
                     return true;
                 }
-                first.resize_divider_at(a_rect, x, y)
-                    || second.resize_divider_at(b_rect, x, y)
+                first.resize_divider_at(a_rect, x, y) || second.resize_divider_at(b_rect, x, y)
             }
         }
     }
@@ -387,9 +402,7 @@ impl Node {
                 NavDir::Left | NavDir::Right => {
                     ranges_overlap(origin.y, origin.height, r.y, r.height)
                 }
-                NavDir::Up | NavDir::Down => {
-                    ranges_overlap(origin.x, origin.width, r.x, r.width)
-                }
+                NavDir::Up | NavDir::Down => ranges_overlap(origin.x, origin.width, r.x, r.width),
             };
             let key = (if overlaps { 0 } else { 1 }, along, across);
             let better = match best {
@@ -480,7 +493,10 @@ mod tests {
         n.split_leaf(1, 2, Dir::Horizontal, 0.5);
         n.split_leaf(2, 3, Dir::Vertical, 0.5);
         let rects = n.rects(area(100, 40));
-        let total: u32 = rects.iter().map(|(_, r)| r.width as u32 * r.height as u32).sum();
+        let total: u32 = rects
+            .iter()
+            .map(|(_, r)| r.width as u32 * r.height as u32)
+            .sum();
         assert_eq!(total, 100 * 40);
     }
 

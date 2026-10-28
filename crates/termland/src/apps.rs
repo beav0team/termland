@@ -55,11 +55,7 @@ impl AppRegistry {
         let mut error = None;
         let apps = match fs::read_to_string(&config_path) {
             Ok(text) => match toml::from_str::<AppsConfig>(&text) {
-                Ok(c) => c
-                    .apps
-                    .into_iter()
-                    .map(|a| (a.name.clone(), a))
-                    .collect(),
+                Ok(c) => c.apps.into_iter().map(|a| (a.name.clone(), a)).collect(),
                 Err(e) => {
                     let msg = format!(
                         "bad apps config at {}: {e}; using defaults",
@@ -72,23 +68,14 @@ impl AppRegistry {
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Self::default_apps(),
             Err(e) => {
-                let msg = format!(
-                    "cannot read {}: {e}; using defaults",
-                    config_path.display()
-                );
+                let msg = format!("cannot read {}: {e}; using defaults", config_path.display());
                 crate::log::write(&msg);
                 error = Some(msg);
                 Self::default_apps()
             }
         };
 
-        (
-            Self {
-                apps,
-                config_path,
-            },
-            error,
-        )
+        (Self { apps, config_path }, error)
     }
 
     /// Built-in default apps (no GitHub updates — those come from your distro
@@ -262,13 +249,19 @@ mod tests {
     fn categories_are_unique() {
         let r = AppRegistry::load();
         let cats = r.categories();
-        assert_eq!(cats.len(), cats.iter().collect::<std::collections::HashSet<_>>().len());
+        assert_eq!(
+            cats.len(),
+            cats.iter().collect::<std::collections::HashSet<_>>().len()
+        );
     }
 
     #[test]
     fn argv_for_resolves_registry_names() {
         let r = AppRegistry::default();
-        assert_eq!(r.argv_for("shell"), vec![std::env::var("SHELL").unwrap_or("/bin/sh".into())]);
+        assert_eq!(
+            r.argv_for("shell"),
+            vec![std::env::var("SHELL").unwrap_or("/bin/sh".into())]
+        );
         assert_eq!(r.argv_for("btop"), vec!["btop"]);
         assert!(r.argv_for("").is_empty());
     }

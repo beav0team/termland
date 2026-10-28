@@ -27,8 +27,8 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::Widget;
 use sysinfo::{System, MINIMUM_CPU_UPDATE_INTERVAL};
 use tui_chart::{
-    Axis, BarChart, BarGroup, BarOrientation, Gauge, GaugeStyle, GridStyle, HitKind, HitMap,
-    Histogram, LegendPosition, LineChart, LineMode, Marker, Series,
+    Axis, BarChart, BarGroup, BarOrientation, Gauge, GaugeStyle, GridStyle, Histogram, HitKind,
+    HitMap, LegendPosition, LineChart, LineMode, Marker, Series,
 };
 
 use crate::theme;
@@ -38,6 +38,9 @@ const RAM: Color = Color::Rgb(0x8f, 0xa9, 0xcf);
 
 /// Samples kept in memory whatever the visible window: one hour at 1 Hz.
 const KEEP: usize = 3600;
+
+/// One series flattened to `(time, value)` points, as the charts want it.
+type Points = Vec<(f64, f64)>;
 
 /// Percent memory in use. The library reports *used* memory, which on Linux
 /// already excludes reclaimable page cache; a `MemFree`-style number would
@@ -87,13 +90,7 @@ impl View {
     }
 
     pub fn all() -> &'static [View] {
-        &[
-            View::Line,
-            View::Area,
-            View::Bars,
-            View::Hist,
-            View::Dial,
-        ]
+        &[View::Line, View::Area, View::Bars, View::Hist, View::Dial]
     }
 
     /// Only these plot against time, so only these get a crosshair.
@@ -188,7 +185,7 @@ impl MonitorPane {
     }
 
     /// The visible samples, as `(x, y)` pairs per series.
-    fn windowed(&self) -> (f64, f64, Vec<(f64, f64)>, Vec<(f64, f64)>) {
+    fn windowed(&self) -> (f64, f64, Points, Points) {
         let (t0, t1) = self.span();
         let mut cpu = Vec::new();
         let mut ram = Vec::new();
@@ -278,7 +275,11 @@ impl MonitorPane {
                     Series::new(first.0).data(first.1).color(first.2),
                     Series::new(second.0).data(second.1).color(second.2),
                 ])
-                .mode(if area_view { LineMode::Area } else { LineMode::Line })
+                .mode(if area_view {
+                    LineMode::Area
+                } else {
+                    LineMode::Line
+                })
                 .marker(if area_view {
                     Marker::Block
                 } else {
@@ -378,8 +379,16 @@ impl MonitorPane {
                         .color(c)
                         .label(label.to_string())
                 };
-                self.capture(&dial(cpu_now, CPU, &format!("cpu {cpu_now:.0}%")), box_of(0), buf);
-                self.capture(&dial(ram_now, RAM, &format!("ram {ram_now:.0}%")), box_of(1), buf);
+                self.capture(
+                    dial(cpu_now, CPU, &format!("cpu {cpu_now:.0}%")),
+                    box_of(0),
+                    buf,
+                );
+                self.capture(
+                    dial(ram_now, RAM, &format!("ram {ram_now:.0}%")),
+                    box_of(1),
+                    buf,
+                );
             }
         }
 
@@ -471,7 +480,7 @@ impl MonitorPane {
             });
         let Some(s) = nearest else { return };
         for y in plot.y..plot.y + plot.height {
-            if (y - plot.y) % 2 == 0 {
+            if (y - plot.y).is_multiple_of(2) {
                 buf.set_stringn(x, y, "┊", 1, Style::default().fg(theme::FG_DIM));
             }
         }
@@ -563,8 +572,7 @@ impl MonitorPane {
     /// True while the newest sample is still being eased in, so the loop can run
     /// at the frame rate for a moment after each sample.
     pub fn animating(&self) -> bool {
-        self.since.elapsed() < self.every.min(Duration::from_millis(250))
-            && self.samples.len() > 1
+        self.since.elapsed() < self.every.min(Duration::from_millis(250)) && self.samples.len() > 1
     }
 }
 

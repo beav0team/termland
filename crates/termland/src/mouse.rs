@@ -134,7 +134,12 @@ fn button_code(b: MouseButton) -> u8 {
 /// `origin` is the pane content's top-left cell, so coordinates become 1-based
 /// relative to the program's own screen. Returns `None` for events the child
 /// did not ask to receive or that fall outside the content area.
-pub fn encode(ev: &MouseEvent, modes: MouseModes, origin: (u16, u16), size: (u16, u16)) -> Option<Vec<u8>> {
+pub fn encode(
+    ev: &MouseEvent,
+    modes: MouseModes,
+    origin: (u16, u16),
+    size: (u16, u16),
+) -> Option<Vec<u8>> {
     if !modes.tracking {
         return None;
     }
@@ -147,43 +152,18 @@ pub fn encode(ev: &MouseEvent, modes: MouseModes, origin: (u16, u16), size: (u16
         return None;
     }
 
-    let mut cb = modifiers_bits(ev.modifiers);
-    let release;
-    match ev.kind {
-        MouseEventKind::Down(b) => {
-            cb += button_code(b);
-            release = false;
-        }
-        MouseEventKind::Up(b) => {
-            cb += button_code(b);
-            release = true;
-        }
-        MouseEventKind::Drag(b) => {
-            // Motion bit + held button.
-            cb += 32 + button_code(b);
-            release = false;
-        }
-        MouseEventKind::ScrollUp => {
-            cb += 64;
-            release = false;
-        }
-        MouseEventKind::ScrollDown => {
-            cb += 65;
-            release = false;
-        }
-        MouseEventKind::ScrollLeft => {
-            cb += 66;
-            release = false;
-        }
-        MouseEventKind::ScrollRight => {
-            cb += 67;
-            release = false;
-        }
-        MouseEventKind::Moved => {
-            cb += 32 + 3;
-            release = false;
-        }
-    }
+    let (code, release) = match ev.kind {
+        MouseEventKind::Down(b) => (button_code(b), false),
+        MouseEventKind::Up(b) => (button_code(b), true),
+        // Motion bit + held button.
+        MouseEventKind::Drag(b) => (32 + button_code(b), false),
+        MouseEventKind::ScrollUp => (64, false),
+        MouseEventKind::ScrollDown => (65, false),
+        MouseEventKind::ScrollLeft => (66, false),
+        MouseEventKind::ScrollRight => (67, false),
+        MouseEventKind::Moved => (32 + 3, false),
+    };
+    let cb = modifiers_bits(ev.modifiers) + code;
 
     let mut out = Vec::new();
     if modes.sgr {
@@ -216,7 +196,7 @@ mod tests {
         MouseEvent {
             kind,
             column: col,
-            row: row,
+            row,
             modifiers: KeyModifiers::empty(),
         }
     }
@@ -245,32 +225,68 @@ mod tests {
 
     #[test]
     fn sgr_encoding_is_one_based_relative_to_the_pane() {
-        let m = MouseModes { tracking: true, sgr: true, button_motion: false, any_motion: false };
-        let bytes = encode(&ev(MouseEventKind::Down(MouseButton::Left), 12, 7), m, (10, 5), (80, 24))
-            .expect("encoded");
+        let m = MouseModes {
+            tracking: true,
+            sgr: true,
+            button_motion: false,
+            any_motion: false,
+        };
+        let bytes = encode(
+            &ev(MouseEventKind::Down(MouseButton::Left), 12, 7),
+            m,
+            (10, 5),
+            (80, 24),
+        )
+        .expect("encoded");
         assert_eq!(bytes, b"\x1b[<0;3;3M".to_vec());
 
-        let release = encode(&ev(MouseEventKind::Up(MouseButton::Left), 12, 7), m, (10, 5), (80, 24))
-            .expect("encoded");
+        let release = encode(
+            &ev(MouseEventKind::Up(MouseButton::Left), 12, 7),
+            m,
+            (10, 5),
+            (80, 24),
+        )
+        .expect("encoded");
         assert_eq!(release, b"\x1b[<0;3;3m".to_vec());
     }
 
     #[test]
     fn wheel_and_right_button_use_the_expected_codes() {
-        let m = MouseModes { tracking: true, sgr: true, button_motion: false, any_motion: false };
+        let m = MouseModes {
+            tracking: true,
+            sgr: true,
+            button_motion: false,
+            any_motion: false,
+        };
         let up = encode(&ev(MouseEventKind::ScrollUp, 11, 6), m, (10, 5), (80, 24)).unwrap();
         assert_eq!(up, b"\x1b[<64;2;2M".to_vec());
         let down = encode(&ev(MouseEventKind::ScrollDown, 11, 6), m, (10, 5), (80, 24)).unwrap();
         assert_eq!(down, b"\x1b[<65;2;2M".to_vec());
-        let right = encode(&ev(MouseEventKind::Down(MouseButton::Right), 11, 6), m, (10, 5), (80, 24)).unwrap();
+        let right = encode(
+            &ev(MouseEventKind::Down(MouseButton::Right), 11, 6),
+            m,
+            (10, 5),
+            (80, 24),
+        )
+        .unwrap();
         assert_eq!(right, b"\x1b[<2;2;2M".to_vec());
     }
 
     #[test]
     fn legacy_encoding_is_three_bytes_after_the_leader() {
-        let m = MouseModes { tracking: true, sgr: false, button_motion: false, any_motion: false };
-        let bytes = encode(&ev(MouseEventKind::Down(MouseButton::Left), 11, 6), m, (10, 5), (80, 24))
-            .expect("encoded");
+        let m = MouseModes {
+            tracking: true,
+            sgr: false,
+            button_motion: false,
+            any_motion: false,
+        };
+        let bytes = encode(
+            &ev(MouseEventKind::Down(MouseButton::Left), 11, 6),
+            m,
+            (10, 5),
+            (80, 24),
+        )
+        .expect("encoded");
         // button 0 + 32, then 1-based x + 32 and y + 32 (so the first cell is 33).
         assert_eq!(bytes, vec![0x1b, b'[', b'M', 32, 32 + 2, 32 + 2]);
     }
@@ -278,10 +294,33 @@ mod tests {
     #[test]
     fn nothing_is_forwarded_without_tracking_or_outside_the_pane() {
         let off = MouseModes::default();
-        assert!(encode(&ev(MouseEventKind::Down(MouseButton::Left), 11, 6), off, (10, 5), (80, 24)).is_none());
+        assert!(encode(
+            &ev(MouseEventKind::Down(MouseButton::Left), 11, 6),
+            off,
+            (10, 5),
+            (80, 24)
+        )
+        .is_none());
 
-        let on = MouseModes { tracking: true, sgr: true, button_motion: false, any_motion: false };
-        assert!(encode(&ev(MouseEventKind::Down(MouseButton::Left), 5, 6), on, (10, 5), (80, 24)).is_none());
-        assert!(encode(&ev(MouseEventKind::Down(MouseButton::Left), 11, 30), on, (10, 5), (80, 24)).is_none());
+        let on = MouseModes {
+            tracking: true,
+            sgr: true,
+            button_motion: false,
+            any_motion: false,
+        };
+        assert!(encode(
+            &ev(MouseEventKind::Down(MouseButton::Left), 5, 6),
+            on,
+            (10, 5),
+            (80, 24)
+        )
+        .is_none());
+        assert!(encode(
+            &ev(MouseEventKind::Down(MouseButton::Left), 11, 30),
+            on,
+            (10, 5),
+            (80, 24)
+        )
+        .is_none());
     }
 }

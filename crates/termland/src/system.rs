@@ -62,7 +62,9 @@ pub struct SystemInfo {
 
 /// Read a single line from a sysfs file.
 fn read_sysfs(path: &Path) -> Option<String> {
-    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
 }
 
 /// Run `prog` and return its stdout, or `None` if it is missing, fails, or
@@ -121,7 +123,7 @@ pub fn local_clock() -> String {
             if libc::localtime_r(&now, &mut tm).is_null() {
                 return "--:--".to_string();
             }
-            return format!("{:02}:{:02}", tm.tm_hour, tm.tm_min);
+            format!("{:02}:{:02}", tm.tm_hour, tm.tm_min)
         }
     }
     #[cfg(not(unix))]
@@ -137,11 +139,15 @@ impl Battery {
 
         // Try BAT0 first, then BAT1.
         for bat in ["BAT0", "BAT1"] {
-            let cap_path = Path::new("/sys/class/power_supply").join(bat).join("capacity");
+            let cap_path = Path::new("/sys/class/power_supply")
+                .join(bat)
+                .join("capacity");
             if let Some(cap) = read_sysfs(&cap_path) {
                 percent = cap.parse().unwrap_or(0);
             }
-            let status_path = Path::new("/sys/class/power_supply").join(bat).join("status");
+            let status_path = Path::new("/sys/class/power_supply")
+                .join(bat)
+                .join("status");
             if let Some(status) = read_sysfs(&status_path) {
                 charging = status.eq_ignore_ascii_case("Charging");
             }
@@ -179,8 +185,7 @@ impl Network {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if name.starts_with("wlan") || name.starts_with("wlp") {
-                    let operstate_path =
-                        Path::new("/sys/class/net").join(&name).join("operstate");
+                    let operstate_path = Path::new("/sys/class/net").join(&name).join("operstate");
                     if let Some(state) = read_sysfs(&operstate_path) {
                         if state == "up" {
                             return Network {

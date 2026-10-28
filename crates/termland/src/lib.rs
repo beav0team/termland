@@ -41,10 +41,10 @@ pub mod msg;
 pub mod panel;
 pub mod pty;
 pub mod surface;
-pub mod wallpaper;
 pub mod system;
 pub mod theme;
 pub mod ui;
+pub mod wallpaper;
 pub mod widgets;
 
 pub use app::App;

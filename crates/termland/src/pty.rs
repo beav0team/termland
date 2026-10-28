@@ -45,12 +45,7 @@ pub struct TermPane {
 }
 
 impl TermPane {
-    pub fn spawn(
-        id: PaneId,
-        size: (u16, u16),
-        argv: Vec<String>,
-        tx: Sender<Msg>,
-    ) -> Result<Self> {
+    pub fn spawn(id: PaneId, size: (u16, u16), argv: Vec<String>, tx: Sender<Msg>) -> Result<Self> {
         let (rows, cols) = (size.0.max(1), size.1.max(1));
         let pty = native_pty_system();
         let pair = pty
@@ -205,8 +200,7 @@ impl TermPane {
     /// stored on the pane; the renderer uses it when drawing.
     pub fn scroll(&mut self, delta: i16) {
         let max_scroll = self.size.0.saturating_sub(1);
-        let new = (self.scroll_offset as i32 + delta as i32)
-            .clamp(0, max_scroll as i32) as u16;
+        let new = (self.scroll_offset as i32 + delta as i32).clamp(0, max_scroll as i32) as u16;
         self.scroll_offset = new;
     }
 }
@@ -339,7 +333,9 @@ fn parse_osc(buf: &[u8], i: usize) -> Option<(u32, String, usize)> {
     let mut kind: u32 = 0;
     let mut digits = 0;
     while j < buf.len() && buf[j].is_ascii_digit() {
-        kind = kind.saturating_mul(10).saturating_add((buf[j] - b'0') as u32);
+        kind = kind
+            .saturating_mul(10)
+            .saturating_add((buf[j] - b'0') as u32);
         j += 1;
         digits += 1;
     }
@@ -398,9 +394,16 @@ mod tests {
     fn plain_output_yields_nothing_and_does_not_grow() {
         let mut s = TitleSniffer::default();
         for _ in 0..500 {
-            assert_eq!(s.feed(b"a plain line of program output, nothing to see\r\n"), None);
+            assert_eq!(
+                s.feed(b"a plain line of program output, nothing to see\r\n"),
+                None
+            );
         }
-        assert!(s.tail.len() < 64, "tail must stay bounded, got {}", s.tail.len());
+        assert!(
+            s.tail.len() < 64,
+            "tail must stay bounded, got {}",
+            s.tail.len()
+        );
     }
 
     #[test]

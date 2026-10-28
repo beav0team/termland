@@ -27,8 +27,7 @@ fn resolve() -> Option<PathBuf> {
             return Some(PathBuf::from(p));
         }
     }
-    let base = dirs::state_dir()
-        .or_else(|| dirs::home_dir().map(|h| h.join(".local/state")))?;
+    let base = dirs::state_dir().or_else(|| dirs::home_dir().map(|h| h.join(".local/state")))?;
     Some(base.join("termland/termland.log"))
 }
 
